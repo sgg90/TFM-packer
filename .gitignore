@@ -1,0 +1,9 @@
+# Cache objects
+packer_cache/
+output/
+
+# ISO
+iso/
+
+# For built boxes
+*.box

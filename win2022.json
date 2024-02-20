@@ -1,0 +1,100 @@
+{
+    "variables": {
+        "boot_wait": "5s",
+        "disk_size": "51200",
+        "iso_checksum": "052C7D7785A99DB7C5FF710090050FBD424A2F17312F0C6463E959E4E19CEE98",
+        "iso_url": "file:///C:/TFM/Packer/Packer-ws2022/iso/SERVER_EVAL_x64FRE_es-es.iso",
+        "memsize": "8192",
+        "numvcpus": "4",
+        "vm_name": "Win2022_64",
+        "winrm_password" : "unir123",
+        "winrm_username" : "Administrador",
+        "output_directory": "./output"
+    },
+    "builders": [
+        {
+            "type": "virtualbox-iso",
+            "guest_os_type": "Windows2022_64",
+            "vm_name": "{{user `vm_name`}}",
+            "boot_command": ["<spacebar>"],
+            "iso_url": "{{user `iso_url`}}",
+            "iso_checksum": "{{user `iso_checksum`}}",
+            "output_directory": "{{user `output_directory`}}",
+            "guest_additions_mode": "disable",
+            "headless": false,
+            "boot_wait": "{{user `boot_wait`}}",
+            "disk_size": "{{user `disk_size`}}",
+            "communicator":"winrm",
+            "winrm_username": "{{user `winrm_username`}}",
+            "winrm_password": "{{user `winrm_password`}}",
+            "winrm_use_ssl": true,
+            "winrm_insecure": true,
+            "winrm_timeout": "4h",
+            "shutdown_command": "shutdown /s /t 5 /f /d p:4:1 /c \"Packer Shutdown\"",
+            "shutdown_timeout": "30m",
+            "iso_interface": "sata",
+            "vboxmanage": [
+                ["modifyvm", "{{.Name}}", "--memory", "{{user `memsize`}}"],
+                ["modifyvm", "{{.Name}}", "--cpus", "{{user `numvcpus`}}"],
+                ["modifyvm", "{{.Name}}", "--firmware", "EFI"],
+                ["storageattach", "{{.Name}}", "--storagectl", "SATA Controller", "--type", "dvddrive", "--port", "3", "--medium", "./scripts/autounattend/autounattend.iso"]
+            ]
+        }
+    ],
+    "provisioners": [
+        {
+            "type": "powershell",
+            "scripts": ["scripts/virtualbox-guest-additions.ps1"],
+            "pause_before": "1m"
+        },
+        {
+            "type": "powershell",
+            "scripts": ["scripts/setup.ps1"]
+        },
+        {
+            "type": "windows-restart",
+            "restart_timeout": "30m"
+        },
+        {
+            "type": "powershell",
+            "scripts": ["scripts/win-update.ps1"]
+        },
+        {
+            "type": "windows-restart",
+            "restart_timeout": "30m"
+        },
+        {
+            "type": "powershell",
+            "scripts": ["scripts/win-update.ps1"]
+        },
+        {
+            "type": "windows-restart",
+            "restart_timeout": "30m"
+        },
+        {
+            "type": "powershell",
+            "scripts": ["scripts/cleanup.ps1"],
+            "pause_before": "1m"
+        },
+        {
+            "type": "powershell",
+            "scripts": ["scripts/sql/sql-server-express-2019-install.ps1"],
+            "pause_before": "1m"
+        },
+        {
+            "type": "powershell",
+            "scripts": ["scripts/sql/sql-db-restore.ps1"],
+            "pause_before": "1m"
+        }
+    ],
+    "post-processors": [
+        [
+            {
+                "type": "vagrant",
+                "keep_input_artifact": false,
+                "output": "{{user `vm_name`}}-vagrant.box",
+                "vagrantfile_template": "vagrantfile-windows.template"
+            }
+        ]
+    ]
+}
